@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/a3bd2lra7man/jwt/jwt"
+	"github.com/a3bd2lra7man/jwt"
 	_jwt "github.com/golang-jwt/jwt"
 )
 
