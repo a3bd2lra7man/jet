@@ -115,12 +115,12 @@ func CreateJwt(claims map[string]interface{}, expireTime time.Duration, aud stri
 	return JwtToken{Token: str, Refresh: generateRandomString(100)}, nil
 }
 
-func Get(token, refresh string) (string, error) {
+func Get(token, refresh string) (JwtToken, error) {
 	jwtToken, err := get(JwtToken{Token: token, Refresh: refresh})
 	if err != nil {
-		return "", err
+		return JwtToken{}, err
 	}
-	return jwtToken.Id, err
+	return jwtToken, err
 }
 
 func Delete(id string) error {
