@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	_jwt "github.com/golang-jwt/jwt"
 )
@@ -67,7 +68,7 @@ func VerifyAudWithClaims(token string, audience string, key string, verifier cla
 	if err != nil {
 		return err
 	}
-	
+
 	isValid := claims.VerifyAudience(audience, true)
 	if !isValid {
 		return errors.New("audience failed")
@@ -84,4 +85,19 @@ func VerifyAudWithClaims(token string, audience string, key string, verifier cla
 	}
 
 	return nil
+}
+
+func CreateJwt(claims map[string]interface{}, expireTime time.Duration, aud string) (string, error) {
+	_claims := _jwt.MapClaims{}
+	_claims["aud"] = aud
+	_claims["exp"] = time.Now().Add(expireTime).Unix()
+	for k, v := range claims {
+		_claims[k] = v
+	}
+	str, err := _jwt.NewWithClaims(_jwt.SigningMethodHS256, _claims).SignedString([]byte(os.Getenv("API_SECRET")))
+
+	if err != nil {
+		return "", err
+	}
+	return str, nil
 }
