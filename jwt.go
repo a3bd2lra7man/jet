@@ -113,7 +113,13 @@ func Create(claims map[string]interface{}, expireTime time.Duration, aud string)
 	if err != nil {
 		return JwtToken{}, err
 	}
-	return JwtToken{Token: str, Refresh: generateRandomString(100)}, nil
+
+	token := JwtToken{Token: str, Refresh: generateRandomString(100)}
+	err = save(token)
+	if err != nil {
+		return JwtToken{}, err
+	}
+	return token, nil
 }
 
 func Get(token, refresh string) (JwtToken, error) {
