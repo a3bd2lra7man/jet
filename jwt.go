@@ -1,8 +1,8 @@
 package jwt
 
 import (
-	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 
@@ -11,7 +11,7 @@ import (
 
 func jwtValidator(token *_jwt.Token) (interface{}, error) {
 	if _, ok := token.Method.(*_jwt.SigningMethodHMAC); !ok {
-		return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 	}
 	return []byte(os.Getenv("API_SECRET")), nil
 }
@@ -27,7 +27,10 @@ func Verify(token string) error {
 func parseClaims(token string) (*_jwt.MapClaims, error) {
 	claims := _jwt.MapClaims{}
 	_, err := _jwt.ParseWithClaims(token, claims, jwtValidator)
-	return &claims, err
+	if err != nil {
+		return &claims, UnAuthenticated
+	}
+	return &claims, nil
 }
 
 func VerifyAudience(token string, audience string) error {
@@ -37,7 +40,7 @@ func VerifyAudience(token string, audience string) error {
 	}
 	isValid := claims.VerifyAudience(audience, true)
 	if !isValid {
-		return errors.New("audience failed")
+		return UnAuthorized
 	}
 	return nil
 }
@@ -52,12 +55,12 @@ func VerifyClaim(token string, key string, verifier claimVerifier) error {
 
 	claim := (*claims)[key]
 	if claim == nil {
-		return errors.New("Claims not found")
+		return UnAuthorized
 	}
 
 	isValid := verifier(claim)
 	if !isValid {
-		return errors.New("Claims not valid")
+		return UnAuthorized
 	}
 
 	return nil
@@ -71,23 +74,33 @@ func VerifyAudWithClaims(token string, audience string, key string, verifier cla
 
 	isValid := claims.VerifyAudience(audience, true)
 	if !isValid {
-		return errors.New("audience failed")
+		return UnAuthorized
 	}
 
 	claim := (*claims)[key]
 	if claim == nil {
-		return errors.New("Claims not found")
+		return UnAuthorized
 	}
 
 	isValid = verifier(claim)
 	if !isValid {
-		return errors.New("Claims not valid")
+		return UnAuthorized
 	}
 
 	return nil
 }
 
-func CreateJwt(claims map[string]interface{}, expireTime time.Duration, aud string) (string, error) {
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func generateRandomString(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
+}
+
+func CreateJwt(claims map[string]interface{}, expireTime time.Duration, aud string) (JwtToken, error) {
 	_claims := _jwt.MapClaims{}
 	_claims["aud"] = aud
 	_claims["exp"] = time.Now().Add(expireTime).Unix()
@@ -97,7 +110,19 @@ func CreateJwt(claims map[string]interface{}, expireTime time.Duration, aud stri
 	str, err := _jwt.NewWithClaims(_jwt.SigningMethodHS256, _claims).SignedString([]byte(os.Getenv("API_SECRET")))
 
 	if err != nil {
+		return JwtToken{}, err
+	}
+	return JwtToken{Token: str, Refresh: generateRandomString(100)}, nil
+}
+
+func Get(token, refresh string) (string, error) {
+	jwtToken, err := get(JwtToken{Token: token, Refresh: refresh})
+	if err != nil {
 		return "", err
 	}
-	return str, nil
+	return jwtToken.Id, err
+}
+
+func Delete(id string) error {
+	return delete(id)
 }
