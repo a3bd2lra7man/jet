@@ -6,10 +6,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/golang-jwt/jwt"
 	_jwt "github.com/golang-jwt/jwt"
 )
 
-func jwtValidator(token *_jwt.Token) (interface{}, error) {
+func validator(token *_jwt.Token) (interface{}, error) {
 	if _, ok := token.Method.(*_jwt.SigningMethodHMAC); !ok {
 		return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 	}
@@ -17,7 +18,7 @@ func jwtValidator(token *_jwt.Token) (interface{}, error) {
 }
 
 func Verify(token string) error {
-	_, err := _jwt.Parse(token, jwtValidator)
+	_, err := _jwt.Parse(token, validator)
 	if err != nil {
 		return err
 	}
@@ -26,7 +27,7 @@ func Verify(token string) error {
 
 func parseClaims(token string) (*_jwt.MapClaims, error) {
 	claims := _jwt.MapClaims{}
-	_, err := _jwt.ParseWithClaims(token, claims, jwtValidator)
+	_, err := _jwt.ParseWithClaims(token, claims, validator)
 	if err != nil {
 		return &claims, UnAuthenticated
 	}
@@ -100,7 +101,7 @@ func generateRandomString(n int) string {
 	return string(b)
 }
 
-func CreateJwt(claims map[string]interface{}, expireTime time.Duration, aud string) (JwtToken, error) {
+func Create(claims map[string]interface{}, expireTime time.Duration, aud string) (JwtToken, error) {
 	_claims := _jwt.MapClaims{}
 	_claims["aud"] = aud
 	_claims["exp"] = time.Now().Add(expireTime).Unix()
@@ -125,4 +126,18 @@ func Get(token, refresh string) (JwtToken, error) {
 
 func Delete(id string) error {
 	return delete(id)
+}
+
+func GetClaim(token string, claim string) (interface{}, error) {
+	t, _, err := new(_jwt.Parser).ParseUnverified(token, _jwt.MapClaims{})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := t.Claims.(jwt.MapClaims)
+
+	if !ok {
+		return nil, UnExpected
+	}
+
+	return claims[claim], nil
 }

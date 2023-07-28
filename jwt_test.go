@@ -230,3 +230,40 @@ func TestVerifyAudWithClaims(t *testing.T) {
 		}
 	}
 }
+
+func TestGetClaim(t *testing.T) {
+	tests := []struct {
+		name  string
+		token string
+	}{
+		{
+			name: "success case",
+			token: func() string {
+				claims := make(map[string]interface{})
+				claims["roles"] = []string{"admin"}
+				return createJwt(claims, time.Hour, "admin")
+			}(),
+		},
+	}
+
+	for _, test := range tests {
+		claim, err := jwt.GetClaim(test.token, "roles")
+		if err != nil {
+			t.Fatalf("in %s expected error : %v, got: %v", test.name, nil, err)
+		}
+		claims, ok := claim.([]interface{})
+		if !ok {
+			t.Fatalf("in %s expect to convert claim to array got: %v", test.name, claim)
+		}
+		found := false
+		for i := 0; i < len(claims); i++ {
+			if claims[i] == "admin" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("in %s expect to found admin role in claim got: %v", test.name, claim)
+		}
+
+	}
+}
